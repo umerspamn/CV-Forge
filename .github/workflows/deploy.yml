@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────
+#  CVForge — CI/CD Pipeline
+#  GitHub Actions workflow
+#
+#  Triggers on every push to main branch
+#
+#  Steps:
+#    1. Checkout code
+#    2. SSH into EC2
+#    3. Pull latest code from GitHub
+#    4. Rebuild Docker containers
+#    5. Verify health check
+# ─────────────────────────────────────────────────────────
+
+name: Deploy CVForge to EC2
+
+on:
+  push:
+    branches: [ main ]
+  # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ── Step 1: Checkout code ──────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Step 2: Deploy to EC2 via SSH ─────────────────
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:        ${{ secrets.EC2_HOST }}
+          username:    ${{ secrets.EC2_USER }}
+          key:         ${{ secrets.EC2_SSH_KEY }}
+          timeout:     120s
+          script: |
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "  CVForge Deployment Started"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            # Go to project folder
+            cd /home/ubuntu/cvforge-docker
+
+            # Pull latest code from GitHub
+            echo "→ Pulling latest code..."
+            git pull origin main
+
+            # Rebuild and restart containers
+            echo "→ Rebuilding containers..."
+            docker compose up -d --build
+
+            # Wait for containers to be healthy
+            echo "→ Waiting for health checks..."
+            sleep 15
+
+            # Verify API is responding
+            echo "→ Verifying deployment..."
+            curl -f http://localhost:3000/health || exit 1
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "  ✅ Deployment successful!"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      # ── Step 3: Verify site is live ────────────────────
+      - name: Verify site is live
+        run: |
+          sleep 10
+          curl -f https://cvforge.duckdns.org/api/health || exit 1
+          echo "✅ Site is live at https://cvforge.duckdns.org"
