@@ -77,7 +77,14 @@ app.get('/health', (_req, res) => {
     env:       process.env.NODE_ENV || 'development'
   });
 });
-
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({
+    status:    'ok',
+    service:   'CVForge API',
+    timestamp: new Date().toISOString(),
+    env:       process.env.NODE_ENV || 'development'
+  });
+});
 // ── API ROUTES ────────────────────────────────────────────────────
 app.use('/api/auth',      authRoutes);
 app.use('/api/recruiter', recruiterRoutes);
