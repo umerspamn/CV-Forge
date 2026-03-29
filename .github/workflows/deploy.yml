@@ -10,31 +10,34 @@ jobs:
     name: Deploy to EC2
     runs-on: ubuntu-latest
 
+    env:
+      HOST: ${{ secrets.EC2_HOST }}
+      USER: ${{ secrets.EC2_USER }}
+
     steps:
 
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup SSH key
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          SSH_HOST: ${{ secrets.EC2_HOST }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
       - name: Deploy to EC2
+        env:
+          SSH_HOST: ${{ secrets.EC2_HOST }}
+          SSH_USER: ${{ secrets.EC2_USER }}
         run: |
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
-              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-              "
-              cd /home/ubuntu/cvforge-docker
-              git pull origin main
-              docker compose up -d --build
-              sleep 20
-              docker compose ps
-              echo deployed
-              "
+              "$SSH_USER@$SSH_HOST" \
+              'cd /home/ubuntu/cvforge-docker && git pull origin main && docker compose up -d --build && sleep 20 && docker compose ps && echo DEPLOY_DONE'
 
       - name: Verify deployment
         run: |
