@@ -28,15 +28,12 @@ jobs:
               -o StrictHostKeyChecking=no \
               ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
               "
-              echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
-              echo '  CVForge Deployment Started'
-              echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
               cd /home/ubuntu/cvforge-docker
               git pull origin main
               docker compose up -d --build
               sleep 20
               docker compose ps
-              echo '✅ Deployment complete!'
+              echo deployed
               "
 
       - name: Verify deployment
@@ -44,8 +41,3 @@ jobs:
           sleep 10
           status=$(curl -s -o /dev/null -w "%{http_code}" https://cvforge.duckdns.org)
           echo "Site returned HTTP $status"
-          if [ "$status" = "200" ] || [ "$status" = "301" ]; then
-            echo "✅ Site is live"
-          else
-            echo "⚠️ Status $status — check manually"
-          fi
