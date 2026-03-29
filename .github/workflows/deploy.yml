@@ -15,18 +15,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Debug secrets
-        env:
-          HOST: ${{ secrets.EC2_HOST }}
-          USER: ${{ secrets.EC2_USER }}
-          KEY: ${{ secrets.EC2_SSH_KEY }}
-        run: |
-          echo "HOST length: ${#HOST}"
-          echo "USER length: ${#USER}"
-          echo "KEY length: ${#KEY}"
-          echo "HOST value: $HOST"
-          echo "USER value: $USER"
-
       - name: Setup SSH
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
@@ -35,9 +23,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          cat ~/.ssh/deploy_key | head -1
-          cat ~/.ssh/deploy_key | tail -1
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts || echo "keyscan failed for: $SSH_HOST"
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
       - name: Deploy to EC2
         env:
@@ -48,4 +34,15 @@ jobs:
               -o StrictHostKeyChecking=no \
               -o ConnectTimeout=30 \
               "$SSH_USER@$SSH_HOST" \
-              'echo CONNECTED && cd /home/ubuntu/cvforge-docker && git pull origin main && docker compose up -d --build && docker compose ps'
+              'cd /home/ubuntu/cvforge-docker && git pull origin main && docker compose up -d --build && sleep 20 && docker compose ps && echo DEPLOY_DONE'
+
+      - name: Verify site is live
+        run: |
+          sleep 10
+          status=$(curl -s -o /dev/null -w "%{http_code}" https://cvforge.duckdns.org)
+          echo "Site returned HTTP $status"
+          if [ "$status" = "200" ] || [ "$status" = "301" ]; then
+            echo "✅ Site is live"
+          else
+            echo "⚠️ Site returned $status"
+          fi
